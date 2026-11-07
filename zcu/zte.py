@@ -6,8 +6,23 @@ import struct
 
 from . import constants
 
+def _file_size(infile):
+    """Ukuran total stream; bekerja untuk file asli maupun objek mirip file
+    tanpa atribut .name (mis. BytesIO)"""
+    try:
+        return stat(infile.name).st_size
+    except (AttributeError, OSError, ValueError):
+        pos = infile.tell()
+        infile.seek(0, 2)
+        size = infile.tell()
+        infile.seek(pos)
+        return size
+
+
 def read_header(infile, little_endian=False):
-    """Mengharapkan berada pada posisi 0 dari file, mengembalikan ukuran header"""
+    """Mengharapkan berada pada posisi awal header, mengembalikan posisi
+    setelah header (atau posisi semula bila tidak ada header)"""
+    start = infile.tell()
     header_magic = struct.unpack('>4I', infile.read(16))
     if header_magic == constants.ZTE_MAGIC:
         # 128 byte header
@@ -16,11 +31,11 @@ def read_header(infile, little_endian=False):
         assert header[2] == 4
         header_length = header[13]
         signed_config_size = header[14]
-        file_size = stat(infile.name).st_size
-        assert header_length + signed_config_size == file_size, "ukuran file tidak cocok dengan header"
+        file_size = _file_size(infile)
+        assert start + header_length + signed_config_size == file_size, "ukuran file tidak cocok dengan header"
     else:
-        # tidak ada header tambahan sehingga kembali ke awal file
-        infile.seek(0)
+        # tidak ada header tambahan sehingga kembali ke posisi semula
+        infile.seek(start)
     return infile.tell()
 
 
@@ -34,8 +49,8 @@ def read_signature(infile):
         signature_length = signature_header[2]
         signature = infile.read(signature_length)
     else:
-        # tidak ada tanda tangan sehingga kembali ke awal file
-        infile.seek(0)
+        # tidak ada tanda tangan sehingga kembali 12 byte ke posisi semula
+        infile.seek(-12, 1)
     return signature
 
 

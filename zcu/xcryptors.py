@@ -2,9 +2,15 @@ import struct
 from io import BytesIO
 from hashlib import sha256
 
-from Cryptodome.Cipher import AES
+try:
+    from Cryptodome.Cipher import AES
+except ImportError:  # pycryptodome (bukan -domex) menyediakan paket 'Crypto'
+    from Crypto.Cipher import AES
 
-from zcu.constants import PAYLOAD_MAGIC
+try:
+    from .constants import PAYLOAD_MAGIC
+except ImportError:  # modul diimpor lepas, bukan sebagai bagian paket zcu
+    from zcu.constants import PAYLOAD_MAGIC
 
 class Xcryptor():
     """Enkripsi Tipe 2 Standar"""
@@ -52,8 +58,11 @@ class Xcryptor():
         data = self.read_chunks(infile)
         data_size = data.tell()
         data.seek(0)
+        # ambil seluruh isi buffer: read() biasa bisa lebih pendek dari
+        # data_size bila total_dec_size melebihi panjang ciphertext
+        ciphertext = data.getvalue()
         res = BytesIO()
-        res.write(self.aes_cipher.decrypt(data.read())[:data_size])
+        res.write(self.aes_cipher.decrypt(ciphertext)[:data_size])
         res.seek(0)
         return res
 

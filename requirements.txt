@@ -1,0 +1,4 @@
+# Cukup salah satu: pycryptodome menyediakan paket 'Crypto',
+# pycryptodomex menyediakan paket 'Cryptodome'. Pustaka zcu mencoba
+# keduanya (lihat zcu/xcryptors.py), jadi keduanya tidak wajib dipasang.
+pycryptodome>=3.19

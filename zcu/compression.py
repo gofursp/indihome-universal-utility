@@ -43,18 +43,30 @@ def compress_helper(infile, chunk_size):
     crc = 0
 
     compressed_data = BytesIO()
-    while True:
-        data = infile.read(chunk_size)
+    last_chunk_length = 0
+    # lookahead satu blok: sebuah blok hanya "terakhir" bila bacaan berikutnya
+    # kosong. Tanpa ini, input yang ukurannya kelipatan persis chunk_size tidak
+    # pernah mendapat penanda blok terakhir dan decompress() membaca melewati
+    # akhir data.
+    data = infile.read(chunk_size)
+    if len(data) == 0:
+        # input kosong: tetap tulis satu blok terakhir berisi stream zlib
+        # kosong, supaya decompress() selalu punya >=1 blok untuk dibaca
+        compressed_chunk = zlib.compress(b'', zlib.Z_BEST_COMPRESSION)
+        crc = zlib.crc32(compressed_chunk, crc) & 0xffffffff
+        compressed_data.write(struct.pack('>3I', 0, len(compressed_chunk), 0))
+        compressed_data.write(compressed_chunk)
+        last_chunk_length = len(compressed_chunk)
+    while len(data) > 0:
+        next_data = infile.read(chunk_size)
         uncompressed_length = len(data)
-        if uncompressed_length == 0:
-            break
 
         total_uncompressed_length += uncompressed_length
 
         compressed_chunk = zlib.compress(data, zlib.Z_BEST_COMPRESSION)
         crc = zlib.crc32(compressed_chunk, crc) & 0xffffffff
 
-        if uncompressed_length < chunk_size:
+        if len(next_data) == 0:
             more_chunks = 0
         else:
             # increment cumulative length if not last block
@@ -68,6 +80,8 @@ def compress_helper(infile, chunk_size):
 
         compressed_data.write(chunk_header)
         compressed_data.write(compressed_chunk)
+        last_chunk_length = len(compressed_chunk)
+        data = next_data
 
     compressed_data.seek(0)
     stats = {
@@ -76,8 +90,8 @@ def compress_helper(infile, chunk_size):
         'compressed_size': cumulative_compressed_length,
     }
 
-    if chunk_size < 65536: # ingin ukuran terkompresi penuh di header dalam beberapa kasus
-        stats['compressed_size'] += len(compressed_chunk) + 12
+    if chunk_size < 65536 and total_uncompressed_length > 0: # ingin ukuran terkompresi penuh di header dalam beberapa kasus
+        stats['compressed_size'] += last_chunk_length + 12
 
     return (compressed_data, stats)
 
