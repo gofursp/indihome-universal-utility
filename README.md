@@ -85,3 +85,20 @@ Hasil pemeriksaan terhadap `Indihome.Universal.Utility.exe` rilis v1.0.0.4-beta:
 - **EXE tersebut tidak memiliki tanda tangan digital Authenticode sama sekali** (tabel sertifikat PE kosong). Jadi tidak ada sertifikat penandatanganan kode yang kadaluarsa di dalamnya — peringatan Windows "unknown publisher"/SmartScreen muncul karena file memang tidak ditandatangani. Perbaikannya bukan "memperbarui sertifikat", melainkan menandatangani hasil build dengan `signtool` dan sertifikat code-signing (untuk pemakaian pribadi boleh sertifikat self-signed). Kode sumber GUI (Delphi) tidak dipublikasikan di repo ini, jadi GUI tidak bisa di-build ulang dari sini.
 - **Tidak ada blob sertifikat** (PEM/DER) yang tertanam di binary. Peringatan sertifikat yang biasa terlihat saat membuka web UI router berasal dari sertifikat self-signed bawaan router ZTE itu sendiri — memang begitu desainnya dan tidak ada yang bisa diperbarui dari sisi aplikasi.
 - Satu-satunya endpoint publik yang dipanggil aplikasi, `https://myip.indihome.co.id/`, saat diuji (2026-11-08) merespons normal lewat HTTP, tetapi jalur HTTPS-nya tidak stabil dari jaringan pengujian sehingga tanggal berlaku sertifikatnya **belum bisa diverifikasi** — tidak ada dasar untuk menyatakan sertifikatnya kadaluarsa.
+
+### GUI
+
+`zcu_gui.py` adalah antarmuka grafis (Tkinter, bawaan Python — tanpa dependensi tambahan) yang membungkus kedua CLI di atas: pilih file, isi serial/MAC bila perlu, klik **Dekode** (hasil ekstrak kredensial tampil di panel log) atau **Enkode**.
+
+```
+python zcu_gui.py
+```
+
+Di Windows, klik ganda `Jalankan-GUI.bat` juga bisa. GUI ini sudah diuji end-to-end (enkode contoh lewat CLI, lalu dekode + ekstrak lewat tombol GUI). Untuk menjadikannya satu file .exe mandiri di Windows:
+
+```
+pip install pyinstaller
+pyinstaller --onefile --windowed --name IndihomeUniversalUtility zcu_gui.py
+```
+
+Catatan: hasil PyInstaller tetap memerlukan `zcudecode.py`, `zcuencode.py`, dan paket `zcu/` berada satu folder dengan .exe-nya, karena GUI memanggil CLI tersebut sebagai proses terpisah.
